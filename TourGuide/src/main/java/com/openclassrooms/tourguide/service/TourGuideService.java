@@ -1,5 +1,6 @@
 package com.openclassrooms.tourguide.service;
 
+import com.openclassrooms.tourguide.DTO.NearbyAttractionDTO;
 import com.openclassrooms.tourguide.helper.InternalTestHelper;
 import com.openclassrooms.tourguide.tracker.Tracker;
 import com.openclassrooms.tourguide.user.User;
@@ -8,6 +9,7 @@ import com.openclassrooms.tourguide.user.UserReward;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -42,7 +44,7 @@ public class TourGuideService {
 	public TourGuideService(GpsUtil gpsUtil, RewardsService rewardsService) {
 		this.gpsUtil = gpsUtil;
 		this.rewardsService = rewardsService;
-		
+
 		Locale.setDefault(Locale.US);
 
 		if (testMode) {
@@ -95,12 +97,38 @@ public class TourGuideService {
 		return visitedLocation;
 	}
 
-	public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
-		List<Attraction> nearbyAttractions = new ArrayList<>();
-		for (Attraction attraction : gpsUtil.getAttractions()) {
-			if (rewardsService.isWithinAttractionProximity(attraction, visitedLocation.location)) {
-				nearbyAttractions.add(attraction);
-			}
+	public List<NearbyAttractionDTO> getNearByAttractions(User user) {
+
+		List<NearbyAttractionDTO> nearbyAttractions = new ArrayList<>();
+		List<Attraction> attractions = new ArrayList<>(gpsUtil.getAttractions());
+		VisitedLocation visitedLocation = getUserLocation(user);
+
+		attractions.sort(Comparator.comparingDouble(
+				attraction -> rewardsService.getDistance(
+						attraction,
+						visitedLocation.location)));
+
+		for (Attraction attraction : attractions.stream().limit(5).toList()) {
+
+			double distance = rewardsService.getDistance(
+					attraction,
+					visitedLocation.location);
+
+			int rewardPoints = rewardsService.getRewardPoints(
+					attraction,
+					user);
+
+			NearbyAttractionDTO dto = new NearbyAttractionDTO(
+					attraction.attractionName,
+					attraction.latitude,
+					attraction.longitude,
+					visitedLocation.location.latitude,
+					visitedLocation.location.longitude,
+					distance,
+					rewardPoints);
+
+			nearbyAttractions.add(dto);
+
 		}
 
 		return nearbyAttractions;
