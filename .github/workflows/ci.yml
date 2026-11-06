@@ -43,7 +43,3 @@ jobs:
 
             - name: Compiler et tester
               run: mvn clean verify
-
-
-            - name: Compiler et tester
-              run: mvn clean verify
