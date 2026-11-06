@@ -73,7 +73,7 @@ public class RewardsService {
 	}
 
 	private boolean nearAttraction(VisitedLocation visitedLocation, Attraction attraction) {
-		return getDistance(attraction, visitedLocation.location) > proximityBuffer ? false : true;
+		return getDistance(visitedLocation.location, attraction) <= proximityBuffer;
 	}
 
 	public int getRewardPoints(Attraction attraction, User user) {
@@ -86,8 +86,12 @@ public class RewardsService {
 		double lat2 = Math.toRadians(loc2.latitude);
 		double lon2 = Math.toRadians(loc2.longitude);
 
-		double angle = Math.acos(Math.sin(lat1) * Math.sin(lat2)
-				+ Math.cos(lat1) * Math.cos(lat2) * Math.cos(lon1 - lon2));
+		double cosAngle = Math.sin(lat1) * Math.sin(lat2)
+				+ Math.cos(lat1) * Math.cos(lat2) * Math.cos(lon1 - lon2);
+
+		cosAngle = Math.max(-1.0, Math.min(1.0, cosAngle));
+
+		double angle = Math.acos(cosAngle);
 
 		double nauticalMiles = 60 * Math.toDegrees(angle);
 		double statuteMiles = STATUTE_MILES_PER_NAUTICAL_MILE * nauticalMiles;

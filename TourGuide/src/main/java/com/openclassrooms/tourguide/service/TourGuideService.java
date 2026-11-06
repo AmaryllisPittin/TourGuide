@@ -17,6 +17,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -95,6 +100,33 @@ public class TourGuideService {
 		user.addToVisitedLocations(visitedLocation);
 		rewardsService.calculateRewards(user);
 		return visitedLocation;
+	}
+
+	public void trackAllUsersLocations() throws InterruptedException {
+
+		ExecutorService executor = Executors.newFixedThreadPool(200);
+
+		try {
+			List<Callable<VisitedLocation>> tasks = getAllUsers()
+					.stream()
+					.<Callable<VisitedLocation>>map(
+							user -> () -> trackUserLocation(user))
+					.collect(Collectors.toList());
+
+			List<Future<VisitedLocation>> results = executor.invokeAll(tasks);
+
+			for (Future<VisitedLocation> result : results) {
+				try {
+					result.get();
+				} catch (ExecutionException e) {
+					throw new IllegalStateException(
+							"Erreur pendant le suivi des utilisateurs: ", e.getCause());
+				}
+			}
+		} finally {
+			executor.shutdownNow();
+		}
+
 	}
 
 	public List<NearbyAttractionDTO> getNearByAttractions(User user) {
