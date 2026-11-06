@@ -10,7 +10,7 @@ jobs:
 
         defaults:
          run:
-            working-directory: ./TourGuide
+            working-directory: ./TourGuide/TourGuide
 
         steps:
             - name: Recuperer le projet
@@ -22,7 +22,7 @@ jobs:
                 distribution: temurin
                 java-version: '17'
                 cache: maven
-                cache-dependency-path: TourGuide/pom.xml
+                cache-dependency-path: TourGuide/TourGuide/pom.xml
 
             - name: Compiler et tester
               run: mvn clean verify
