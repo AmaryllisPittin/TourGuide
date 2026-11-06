@@ -10,7 +10,7 @@ jobs:
 
         defaults:
          run:
-            working-directory: ./TourGuide/TourGuide
+            working-directory: ./TourGuide
 
         steps:
             - name: Recuperer le projet
