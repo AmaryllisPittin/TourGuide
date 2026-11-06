@@ -24,6 +24,13 @@ jobs:
                 cache: maven
                 cache-dependency-path: TourGuide/pom.xml
 
+            - name: Verifier les fichiers JAR
+              run: |
+               echo "Repertoire courant: "
+               pwd
+               echo "Fichiers Jar disponibles: "
+               find . -type f -name "*.jar"
+
             - name: Installer les dependances locales
               run: 
                 mvn install:install-file -Dfile=libs/gpsUtil-1.0.0.jar -DgroupId=gpsUtil -DartifactId=gpsUtil -Dversion=1.0.0 -Dpackaging=jar
