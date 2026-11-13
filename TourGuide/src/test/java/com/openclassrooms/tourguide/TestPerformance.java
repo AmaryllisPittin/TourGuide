@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.time.StopWatch;
@@ -46,6 +49,8 @@ public class TestPerformance {
 
 	@Test
 	public void highVolumeTrackLocation() throws InterruptedException {
+		System.out.println("Démarrage du test de localisation...");
+
 		GpsUtil gpsUtil = new GpsUtil();
 		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
 		// Users should be incremented up to 100,000, and test finishes within 15
@@ -54,45 +59,83 @@ public class TestPerformance {
 		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
 		tourGuideService.tracker.stopTracking();
 
+		System.out.println("Utilisateurs initialisés: " + tourGuideService.getAllUsers().size());
+
 		StopWatch stopWatch = new StopWatch();
 		stopWatch.start();
 		tourGuideService.trackAllUsersLocations();
 		stopWatch.stop();
 		tourGuideService.tracker.stopTracking();
 
-		System.out.printf("Duree : %.3f secondes%n ", stopWatch.getTime() / 100000.0);
+		double secondes = stopWatch.getTime() / 1000.0;
+
+		System.out.printf("Duree : %.3f secondes%n ", secondes);
+		System.out.printf("Durée moyenne par utilisateur: %.3f ms%n", 
+			(double) stopWatch.getTime() / 100000); 
+
 		assertTrue(TimeUnit.MINUTES.toSeconds(15) >= TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
 	}
 
 	@Test
-	public void highVolumeGetRewards() {
+	public void highVolumeGetRewards() throws Exception {
+
 		GpsUtil gpsUtil = new GpsUtil();
 		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
 
 		// Users should be incremented up to 100,000, and test finishes within 20
 		// minutes
 		InternalTestHelper.setInternalUserNumber(100000);
-		StopWatch stopWatch = new StopWatch();
-		stopWatch.start();
 		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
 		tourGuideService.tracker.stopTracking();
 
 		Attraction attraction = gpsUtil.getAttractions().get(0);
-		List<User> allUsers = new ArrayList<>();
-		allUsers = tourGuideService.getAllUsers();
-		allUsers.forEach(u -> u.addToVisitedLocations(new VisitedLocation(u.getUserId(), attraction, new Date())));
+		List<User> allUsers = tourGuideService.getAllUsers();
 
-		allUsers.forEach(u -> rewardsService.calculateRewards(u));
+		allUsers.forEach(user -> 
+			user.addToVisitedLocations(
+				new VisitedLocation(
+					user.getUserId(), 
+					attraction, 
+					new Date()
+				)
+			)
+		);
+
+		StopWatch stopWatch = new StopWatch();
+		stopWatch.start();
+
+		ExecutorService executor = Executors.newFixedThreadPool(64);
+
+		try {
+			List<Future<?>> futures = new ArrayList<>();
+
+			for (User user : allUsers) {
+				futures.add(executor.submit(
+					() -> rewardsService.calculateRewards(user)
+				));
+			}
+
+			for (Future<?> future : futures) {
+				future.get();
+			}
+		} finally {
+			executor.shutdown();
+		}
+
+		stopWatch.stop();
 
 		for (User user : allUsers) {
 			assertTrue(user.getUserRewards().size() > 0);
 		}
-		stopWatch.stop();
-		tourGuideService.tracker.stopTracking();
 
-		System.out.println("highVolumeGetRewards: Time Elapsed: " + TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime())
-				+ " seconds.");
+		System.out.printf("Utilisateurs traites: %d%n", allUsers.size());
+		System.out.printf("Duree: %.2f secondes%n", stopWatch.getTime() / 1000.0);
+
+		double secondes = stopWatch.getTime() / 1000.0;
+		double estimationMinutes = secondes * (100000.0 / allUsers.size()) / 60.0;
+		System.out.printf("Estimation pour 100 000 utilisateurs : %.2f minute%n", estimationMinutes);
+	
 		assertTrue(TimeUnit.MINUTES.toSeconds(20) >= TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
-	}
 
+	}
 }

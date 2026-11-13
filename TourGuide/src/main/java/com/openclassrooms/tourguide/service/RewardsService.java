@@ -23,12 +23,16 @@ public class RewardsService {
 	private int defaultProximityBuffer = 10;
 	private int proximityBuffer = defaultProximityBuffer;
 	private int attractionProximityRange = 200;
+
 	private final GpsUtil gpsUtil;
 	private final RewardCentral rewardsCentral;
+	// La liste des attractions est récupérée une seule fois
+	private final List<Attraction> attractions;
 
 	public RewardsService(GpsUtil gpsUtil, RewardCentral rewardCentral) {
 		this.gpsUtil = gpsUtil;
 		this.rewardsCentral = rewardCentral;
+		this.attractions = List.copyOf(gpsUtil.getAttractions());
 	}
 
 	public void setProximityBuffer(int proximityBuffer) {
@@ -41,7 +45,10 @@ public class RewardsService {
 
 	public void calculateRewards(User user) {
 		List<VisitedLocation> userLocations = user.getVisitedLocations();
-		List<Attraction> attractions = gpsUtil.getAttractions();
+
+		if (userLocations.isEmpty()) {
+			return;
+		}
 
 		Set<UUID> rewardedAttractionIds = user.getUserRewards()
 				.stream()
@@ -51,25 +58,31 @@ public class RewardsService {
 		for (VisitedLocation visitedLocation : userLocations) {
 
 			for (Attraction attraction : attractions) {
-				if (rewardedAttractionIds.contains(attraction.attractionId)) {
+
+				UUID attractionId = attraction.attractionId;
+
+				if (rewardedAttractionIds.contains(attractionId)) {
 					continue;
 				}
-				if (nearAttraction(visitedLocation, attraction)) {
-					int rewardPoints = getRewardPoints(attraction, user);
-
-					user.addUserReward(new UserReward(
-							visitedLocation,
-							attraction,
-							rewardPoints));
-
-					rewardedAttractionIds.add(attraction.attractionId);
+				if (!nearAttraction(visitedLocation, attraction)) {
+					continue;
 				}
+				
+				int rewardPoints = getRewardPoints(attraction, user);
+
+				user.addUserReward(new UserReward(
+						visitedLocation,
+						attraction,
+						rewardPoints));
+
+				rewardedAttractionIds.add(attractionId);
+				
 			}
 		}
 	}
 
 	public boolean isWithinAttractionProximity(Attraction attraction, Location location) {
-		return getDistance(attraction, location) > attractionProximityRange ? false : true;
+		return getDistance(attraction, location) <= attractionProximityRange;
 	}
 
 	private boolean nearAttraction(VisitedLocation visitedLocation, Attraction attraction) {
