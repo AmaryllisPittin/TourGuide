@@ -60,7 +60,7 @@ public class TestPerformance {
 		stopWatch.stop();
 		tourGuideService.tracker.stopTracking();
 
-		System.out.printf("Duree : %.3f secondes%n ", stopWatch.getTime() / 1000.0);
+		System.out.printf("Duree : %.3f secondes%n ", stopWatch.getTime() / 100000.0);
 		assertTrue(TimeUnit.MINUTES.toSeconds(15) >= TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
 	}
 
@@ -71,7 +71,7 @@ public class TestPerformance {
 
 		// Users should be incremented up to 100,000, and test finishes within 20
 		// minutes
-		InternalTestHelper.setInternalUserNumber(100);
+		InternalTestHelper.setInternalUserNumber(100000);
 		StopWatch stopWatch = new StopWatch();
 		stopWatch.start();
 		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
